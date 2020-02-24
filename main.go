@@ -5,43 +5,32 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tb "gopkg.in/tucnak/telebot.v2"
 )
 
 func main() {
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_APITOKEN"))
+	var (
+		port      = os.Getenv("PORT") // sets automatically
+		publicURL = os.Getenv("PUBLIC_URL")
+		token     = os.Getenv("TELEGRAM_APITOKEN")
+	)
+
+	webhook := &tb.Webhook{
+		Listen:   ":" + port,
+		Endpoint: &tb.WebhookEndpoint{PublicURL: publicURL},
+	}
+
+	pref := tb.Settings{
+		Token:  token,
+		Poller: webhook,
+	}
+
+	b, err := tb.NewBot(pref)
 	if err != nil {
-		log.Panic(err) // You should add better error handling than this!
+		log.Fatal(err)
 	}
 
-	bot.Debug = true
-
-	log.Printf("Authorized on account %s", bot.Self.UserName)
-
-	updateConfig := tgbotapi.NewUpdate(0)
-	updateConfig.Timeout = 60
-
-	updates, err := bot.GetUpdatesChan(updateConfig)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	for update := range updates {
-		if update.Message == nil { // ignore any non-Message Updates
-			continue
-		}
-
-		if !update.Message.IsCommand() { // ignore any non-command Messages
-			continue
-		}
-
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-		msg.ReplyToMessageID = update.Message.MessageID
-
-		if _, err := bot.Send(msg); err != nil {
-			log.Panic(err)
-		}
-	}
+	b.Handle("/hello", func(m *tb.Message) {
+		b.Send(m.Sender, "Hi!")
+	})
 }
